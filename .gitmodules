@@ -1,5 +1,5 @@
 [submodule "Kinc"]
-	path = Kinc
+	path = Kore
 	url = https://github.com/Kode/Kinc.git
 	branch = v3
 [submodule "imgui"]

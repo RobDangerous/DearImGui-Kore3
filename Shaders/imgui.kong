@@ -1,0 +1,53 @@
+struct vertex_in {
+  pos: float3;
+  uv: float2;
+  col: float4;
+}
+
+struct vertex_out {
+  pos: float4;
+  uv: float2;
+  col: float4;
+}
+
+#[set(imgui_shader_uniforms)]
+const imgui_shader_constants: {
+  mvp: float4x4;
+};
+
+
+fun pos(input: vertex_in): vertex_out {
+  var output = vertex_out;
+
+  var position: float4;
+  position.xy = input.pos.xy;
+  position.z = 0.0;
+  position.w = 1.0;
+
+  output.pos = imgui_shader_constants.mvp * position;
+
+  output.uv = input.uv;
+  output.col = input.col;
+
+  return output;
+}
+
+#[set(imgui_shader_uniforms)]
+const pix_texture: tex2d;
+
+#[set(imgui_shader_uniforms)]
+const pix_sampler: sampler;
+
+out vec4 Out_Color;
+
+fun pix(input: vertex_out): float4 {
+  return input.col * sample(pix_texture, pix_sampler, input.uv);
+}
+
+
+#[pipe]
+struct imgui_pipeline {
+  vertex = pos;
+  fragment = pix;
+  format = framebuffer_format();
+}

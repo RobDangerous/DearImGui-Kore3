@@ -4,10 +4,10 @@
 // If you are new to dear imgui, read examples/README.txt and read the documentation at the top of imgui.cpp.
 // https://github.com/ocornut/imgui
 
-#include <kinc/input/keyboard.h>
-#include <kinc/input/mouse.h>
-#include <kinc/system.h>
-#include <kinc/window.h>
+#include <kore3/input/keyboard.h>
+#include <kore3/input/mouse.h>
+#include <kore3/system.h>
+#include <kore3/window.h>
 
 #include "imgui.h"
 #include "imgui_impl_g4.h"
@@ -15,7 +15,7 @@
 
 // Data
 static int g_Window = NULL;
-static kinc_ticks_t g_Time = 0;
+static kore_ticks g_Time = 0;
 static bool g_MousePressed[5] = {false, false, false, false, false};
 static bool g_MousePressedCurrently[5] = {false, false, false, false, false};
 // static SDL_Cursor*  g_MouseCursors[ImGuiMouseCursor_COUNT] = {};
@@ -30,14 +30,14 @@ static void ImGui_ImplKinc_SetClipboardText(void *, const char *text) {}
 static void keyboard_key_down(int key_code, void *data) {
 	ImGuiIO &io = ImGui::GetIO();
 	switch (key_code) {
-	case KINC_KEY_SHIFT:
+	case KORE_KEY_SHIFT:
 		io.KeyShift = true;
 		break;
-	case KINC_KEY_CONTROL:
+	case KORE_KEY_CONTROL:
 		io.KeyCtrl = true;
 		break;
-	case KINC_KEY_ALT:
-	case KINC_KEY_ALT_GR:
+	case KORE_KEY_ALT:
+	case KORE_KEY_ALT_GR:
 		io.KeyAlt = true;
 		break;
 	default:
@@ -50,14 +50,14 @@ static void keyboard_key_down(int key_code, void *data) {
 static void keyboard_key_up(int key_code, void *data) {
 	ImGuiIO &io = ImGui::GetIO();
 	switch (key_code) {
-	case KINC_KEY_SHIFT:
+	case KORE_KEY_SHIFT:
 		io.KeyShift = false;
 		break;
-	case KINC_KEY_CONTROL:
+	case KORE_KEY_CONTROL:
 		io.KeyCtrl = false;
 		break;
-	case KINC_KEY_ALT:
-	case KINC_KEY_ALT_GR:
+	case KORE_KEY_ALT:
+	case KORE_KEY_ALT_GR:
 		io.KeyAlt = false;
 		break;
 	default:
@@ -107,44 +107,44 @@ static bool ImGui_ImplKinc_Init(int window) {
 	ImGuiIO &io = ImGui::GetIO();
 	io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values (optional)
 	io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;  // We can honor io.WantSetMousePos requests (optional, rarely used)
-	io.BackendPlatformName = "imgui_impl_sdl";
+	io.BackendPlatformName = "imgui_impl_kore3";
 
 	// Keyboard mapping. ImGui will use those indices to peek into the io.KeysDown[] array.
-	io.KeyMap[ImGuiKey_Tab] = KINC_KEY_TAB;
-	io.KeyMap[ImGuiKey_LeftArrow] = KINC_KEY_LEFT;
-	io.KeyMap[ImGuiKey_RightArrow] = KINC_KEY_RIGHT;
-	io.KeyMap[ImGuiKey_UpArrow] = KINC_KEY_UP;
-	io.KeyMap[ImGuiKey_DownArrow] = KINC_KEY_DOWN;
-	io.KeyMap[ImGuiKey_PageUp] = KINC_KEY_PAGE_UP;
-	io.KeyMap[ImGuiKey_PageDown] = KINC_KEY_PAGE_DOWN;
-	io.KeyMap[ImGuiKey_Home] = KINC_KEY_HOME;
-	io.KeyMap[ImGuiKey_End] = KINC_KEY_END;
-	io.KeyMap[ImGuiKey_Insert] = KINC_KEY_INSERT;
-	io.KeyMap[ImGuiKey_Delete] = KINC_KEY_DELETE;
-	io.KeyMap[ImGuiKey_Backspace] = KINC_KEY_BACKSPACE;
-	io.KeyMap[ImGuiKey_Space] = KINC_KEY_SPACE;
-	io.KeyMap[ImGuiKey_Enter] = KINC_KEY_RETURN;
-	io.KeyMap[ImGuiKey_Escape] = KINC_KEY_ESCAPE;
-	io.KeyMap[ImGuiKey_KeyPadEnter] = KINC_KEY_RETURN;
-	io.KeyMap[ImGuiKey_A] = KINC_KEY_A;
-	io.KeyMap[ImGuiKey_C] = KINC_KEY_C;
-	io.KeyMap[ImGuiKey_V] = KINC_KEY_V;
-	io.KeyMap[ImGuiKey_X] = KINC_KEY_X;
-	io.KeyMap[ImGuiKey_Y] = KINC_KEY_Y;
-	io.KeyMap[ImGuiKey_Z] = KINC_KEY_Z;
+	io.KeyMap[ImGuiKey_Tab] = KORE_KEY_TAB;
+	io.KeyMap[ImGuiKey_LeftArrow] = KORE_KEY_LEFT;
+	io.KeyMap[ImGuiKey_RightArrow] = KORE_KEY_RIGHT;
+	io.KeyMap[ImGuiKey_UpArrow] = KORE_KEY_UP;
+	io.KeyMap[ImGuiKey_DownArrow] = KORE_KEY_DOWN;
+	io.KeyMap[ImGuiKey_PageUp] = KORE_KEY_PAGE_UP;
+	io.KeyMap[ImGuiKey_PageDown] = KORE_KEY_PAGE_DOWN;
+	io.KeyMap[ImGuiKey_Home] = KORE_KEY_HOME;
+	io.KeyMap[ImGuiKey_End] = KORE_KEY_END;
+	io.KeyMap[ImGuiKey_Insert] = KORE_KEY_INSERT;
+	io.KeyMap[ImGuiKey_Delete] = KORE_KEY_DELETE;
+	io.KeyMap[ImGuiKey_Backspace] = KORE_KEY_BACKSPACE;
+	io.KeyMap[ImGuiKey_Space] = KORE_KEY_SPACE;
+	io.KeyMap[ImGuiKey_Enter] = KORE_KEY_RETURN;
+	io.KeyMap[ImGuiKey_Escape] = KORE_KEY_ESCAPE;
+	io.KeyMap[ImGuiKey_KeyPadEnter] = KORE_KEY_RETURN;
+	io.KeyMap[ImGuiKey_A] = KORE_KEY_A;
+	io.KeyMap[ImGuiKey_C] = KORE_KEY_C;
+	io.KeyMap[ImGuiKey_V] = KORE_KEY_V;
+	io.KeyMap[ImGuiKey_X] = KORE_KEY_X;
+	io.KeyMap[ImGuiKey_Y] = KORE_KEY_Y;
+	io.KeyMap[ImGuiKey_Z] = KORE_KEY_Z;
 
 	io.SetClipboardTextFn = ImGui_ImplKinc_SetClipboardText;
 	io.GetClipboardTextFn = ImGui_ImplKinc_GetClipboardText;
 	io.ClipboardUserData = NULL;
 
-	kinc_keyboard_set_key_down_callback(keyboard_key_down, NULL);
-	kinc_keyboard_set_key_up_callback(keyboard_key_up, NULL);
-	kinc_keyboard_set_key_press_callback(keyboard_key_press, NULL);
+	kore_keyboard_set_key_down_callback(keyboard_key_down, NULL);
+	kore_keyboard_set_key_up_callback(keyboard_key_up, NULL);
+	kore_keyboard_set_key_press_callback(keyboard_key_press, NULL);
 
-	kinc_mouse_set_move_callback(mouse_move, NULL);
-	kinc_mouse_set_press_callback(mouse_press, NULL);
-	kinc_mouse_set_release_callback(mouse_release, NULL);
-	kinc_mouse_set_scroll_callback(mouse_scroll, NULL);
+  kore_mouse_set_move_callback(mouse_move, NULL);
+	kore_mouse_set_press_callback(mouse_press, NULL);
+	kore_mouse_set_release_callback(mouse_release, NULL);
+	kore_mouse_set_scroll_callback(mouse_scroll, NULL);
 
 	/*g_MouseCursors[ImGuiMouseCursor_Arrow] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
 	g_MouseCursors[ImGuiMouseCursor_TextInput] = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_IBEAM);
@@ -283,14 +283,14 @@ void ImGui_ImplKinc_NewFrame(int window) {
 	// Setup display size (every frame to accommodate for window resizing)
 	int w, h;
 	int display_w, display_h;
-	display_w = w = kinc_window_width(window);
-	display_h = h = kinc_window_height(window);
+	display_w = w = kore_window_width(window);
+	display_h = h = kore_window_height(window);
 	io.DisplaySize = ImVec2((float)w, (float)h);
 	if (w > 0 && h > 0) io.DisplayFramebufferScale = ImVec2((float)display_w / w, (float)display_h / h);
 
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
-	static double frequency = kinc_frequency();
-	kinc_ticks_t current_time = kinc_timestamp();
+	static double frequency = kore_frequency();
+	kore_ticks current_time = kinc_timestamp();
 	io.DeltaTime = g_Time > 0 ? (float)((double)(current_time - g_Time) / frequency) : (float)(1.0f / 60.0f);
 	g_Time = current_time;
 

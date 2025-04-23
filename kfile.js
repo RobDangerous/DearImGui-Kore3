@@ -1,8 +1,9 @@
 const project = new Project('DearImGui');
 
-await project.addProject('Kinc');
+await project.addProject('Kore');
 
 project.addDefine('IMGUI_USER_CONFIG="imguiconfig.h"');
+project.addDefine('_GNU_SOURCE=1');
 project.addIncludeDir('include');
 
 project.addIncludeDir('imgui');
@@ -14,7 +15,8 @@ project.addFiles(
 	'imgui/imgui_widgets.cpp'
 );
 
-project.addFiles('Sources/**', 'include/**', 'Shaders/**');
+project.addFiles('Sources/**', 'include/**');
+project.addKongDir('Shaders');
 project.setDebugDir('Deployment');
 
 project.flatten();

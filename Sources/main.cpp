@@ -2,14 +2,18 @@
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 // (SDL is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
 
-#include <kinc/graphics4/graphics.h>
-#include <kinc/system.h>
+#include <kore3/system.h>
+#include <kore3/window.h>
 
 #include "imgui.h"
 #include "imgui_impl_g4.h"
 #include "imgui_impl_kinc.h"
 
 #include <stdio.h>
+
+static kore_gpu_texture depth_texture;
+static kore_gpu_device device;
+static kore_gpu_command_list commandlist;
 
 // Data
 
@@ -22,7 +26,36 @@ static void update(void *data) {
 	bool show_another_window = true;
 	float clear_color[] = {1.0f, 0.0f, 0.0f, 1.0f};
 
-	kinc_g4_begin(0);
+  kore_gpu_texture *framebuffer = kore_gpu_device_get_framebuffer(&device);
+
+	kore_gpu_render_pass_parameters parameters = {
+	    .color_attachments_count = 1,
+	    .color_attachments =
+	        {
+	            {
+	                .load_op = KORE_GPU_LOAD_OP_CLEAR,
+	                .clear_value =
+	                    {
+	                        .r = clear_color[0],
+	                        .g = clear_color[1],
+	                        .b = clear_color[2],
+	                        .a = clear_color[3],
+	                    },
+	                .texture.texture           = framebuffer,
+	                .texture.array_layer_count = 1,
+	                .texture.mip_level_count   = 1,
+	                .texture.format            = kore_gpu_device_framebuffer_format(&device),
+	                .texture.dimension         = KORE_GPU_TEXTURE_VIEW_DIMENSION_2D,
+	            },
+	        },
+	    .depth_stencil_attachment =
+	        {
+	            .texture           = &depth,
+	            .depth_load_op     = KORE_GPU_LOAD_OP_CLEAR,
+	            .depth_clear_value = 1.0f,
+	        },
+	};
+	kore_gpu_command_list_begin_render_pass(&list, &parameters);
 
 	// Start the Dear ImGui frame
 	ImGui_ImplG4_NewFrame();
@@ -70,6 +103,7 @@ static void update(void *data) {
 	ImGui::Render();
 	/*g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);*/
 	kinc_g4_clear(KINC_G4_CLEAR_COLOR, 0xff0000ff, 0.0f, 0);
+  kore_gpu_command_list_clear_buffer(&);
 	ImGui_ImplG4_RenderDrawData(ImGui::GetDrawData());
 
 	kinc_g4_end(0);
@@ -81,7 +115,28 @@ int kickstart(int, char **) {
 	// Setup SDL
 	// (Some versions of SDL before <2.0.10 appears to have performance/stalling issues on a minority of Windows systems,
 	// depending on whether SDL_INIT_GAMECONTROLLER is enabled or disabled.. updating to latest version of SDL is recommended!)
-	kinc_init("Dear ImGui", 1024, 768, NULL, NULL);
+	kore_init("Dear ImGui", 1024, 768, NULL, NULL);
+
+  kore_gpu_device_wishlist wishlist = {0};
+  kore_gpu_device_create(&device, &wishlist);
+
+	kong_init(&device);
+
+  {
+    kore_gpu_texture_parameters texture_params = {
+        .format                = KORE_GPU_TEXTURE_FORMAT_DEPTH32FLOAT,
+        .width                 = 1024, // TODO: maybe don't make these literals
+        .height                = 768,
+        .depth_or_array_layers = 1,
+        .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
+        .mip_level_count       = 1,
+        .sample_count          = 1,
+        .usage                 = KORE_GPU_TEXTURE_USAGE_RENDER_ATTACHMENT,
+    };
+    kore_gpu_device_create_texture(&device, &texture_params, &depth_texture);
+  }
+
+  kore_gpu_device_create_command_list(&device, KORE_GPU_COMMAND_LIST_TYPE_GRAPHICS, &commandlist);
 
 	// Setup Dear ImGui context
 	IMGUI_CHECKVERSION();
@@ -97,7 +152,7 @@ int kickstart(int, char **) {
 
 	// Setup Platform/Renderer bindings
 	ImGui_ImplKinc_InitForG4(0);
-	ImGui_ImplG4_Init(0);
+	ImGui_ImplG4_Init(&device);
 
 	// Load Fonts
 	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
@@ -121,8 +176,8 @@ int kickstart(int, char **) {
 	bool show_another_window = false;
 	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
-	kinc_set_update_callback(update, NULL);
-	kinc_start();
+	kore_set_update_callback(update, NULL);
+	kore_start();
 
 	// Cleanup
 	ImGui_ImplG4_Shutdown();

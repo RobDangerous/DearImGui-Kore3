@@ -14,7 +14,7 @@
 #include "imgui_impl_kinc.h"
 
 // Data
-static int g_Window = NULL;
+static int g_Window = -1;
 static kore_ticks g_Time = 0;
 static bool g_MousePressed[5] = {false, false, false, false, false};
 static bool g_MousePressedCurrently[5] = {false, false, false, false, false};
@@ -77,7 +77,7 @@ static void keyboard_key_press(unsigned character, void *data) {
 
 static void mouse_move(int window, int x, int y, int movement_x, int movement_y, void *data) {
 	ImGuiIO &io = ImGui::GetIO();
-	io.MousePos = ImVec2((float)x, (float)y);
+	io.MousePos = ImVec2((float)x * 2.0, (float)y * 2.0);
 }
 
 static void mouse_press(int window, int button, int x, int y, void *data) {
@@ -165,7 +165,7 @@ bool ImGui_ImplKinc_InitForG4(int window) {
 }
 
 void ImGui_ImplKinc_Shutdown() {
-	g_Window = NULL;
+	g_Window = -1;
 
 	// Destroy last known clipboard data
 	/*if (g_ClipboardTextData)
@@ -290,7 +290,7 @@ void ImGui_ImplKinc_NewFrame(int window) {
 
 	// Setup time step (we don't use SDL_GetTicks() because it is using millisecond resolution)
 	static double frequency = kore_frequency();
-	kore_ticks current_time = kinc_timestamp();
+	kore_ticks current_time = kore_timestamp();
 	io.DeltaTime = g_Time > 0 ? (float)((double)(current_time - g_Time) / frequency) : (float)(1.0f / 60.0f);
 	g_Time = current_time;
 

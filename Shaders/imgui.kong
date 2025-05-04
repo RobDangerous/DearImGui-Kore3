@@ -17,7 +17,7 @@ const imgui_shader_constants: {
 
 
 fun pos(input: vertex_in): vertex_out {
-  var output = vertex_out;
+  var output: vertex_out;
 
   var position: float4;
   position.xy = input.pos.xy;
@@ -38,10 +38,8 @@ const pix_texture: tex2d;
 #[set(imgui_shader_uniforms)]
 const pix_sampler: sampler;
 
-out vec4 Out_Color;
-
 fun pix(input: vertex_out): float4 {
-  return input.col * sample(pix_texture, pix_sampler, input.uv);
+  return input.col;// * sample(pix_texture, pix_sampler, input.uv);
 }
 
 

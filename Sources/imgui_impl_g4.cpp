@@ -4,14 +4,15 @@
 // If you are new to dear imgui, read examples/README.txt and read the documentation at the top of imgui.cpp
 // https://github.com/ocornut/imgui
 
-
 #include <kore3/system.h>
-#include <kore3/io/filereader.h>
+#include <kore3/image.h>
 
 #include <kong.h>
 
 #include "imgui.h"
 #include "imgui_impl_g4.h"
+
+#include <stdio.h>
 
 // G4 data
 /*static ID3D11Device*            g_pd3dDevice = NULL;
@@ -30,27 +31,26 @@ static ID3D11ShaderResourceView*g_pFontTextureView = NULL;
 static ID3D11RasterizerState*   g_pRasterizerState = NULL;
 static ID3D11BlendState*        g_pBlendState = NULL;
 static ID3D11DepthStencilState* g_pDepthStencilState = NULL;*/
-static kore_gpu_device g_KoreDevice;
-static kore_gpu_command_list g_KoreCommandList;
+static kore_gpu_device *g_KoreDevice;
+static kore_gpu_command_list *g_KoreCommandList;
 static kore_gpu_texture g_FontTexture;
+static kore_gpu_buffer g_FontImageBuffer;
 static kore_gpu_sampler g_FontSampler;
 static bool g_FontSamplerInitialized = false;
 static kore_gpu_buffer g_ImguiShaderConstants;
 static imgui_shader_uniforms_set g_ImguiShaderUniforms;
 static kore_gpu_buffer g_IB;
 static bool g_IndexBufferInitialized = false;
-static kore_gpu_buffer g_VB;
+static vertex_in_buffer g_VB;
 static bool g_VertexBufferInitialized = false;
 static int g_VertexBufferSize = 5000, g_IndexBufferSize = 10000;
-static unsigned char *g_FontPixels;
-
-struct VERTEX_CONSTANT_BUFFER {
-  float mvp[4][4];
-};
+static bool first_update = true;
+static uint32_t font_image_width = 0;
+static uint32_t font_image_height = 0;
 
 static void ImGui_ImplG4_SetupRenderState(ImDrawData *draw_data) {
   // Setup viewport
-  kinc_g4_viewport(0, 0, (int)draw_data->DisplaySize.x, (int)draw_data->DisplaySize.y);
+  kore_gpu_command_list_set_viewport(g_KoreCommandList, 0, 0, (int)draw_data->DisplaySize.x, (int)draw_data->DisplaySize.y, 0.0, 1.0);
 
   // Setup shader and vertex buffers
   unsigned int stride = sizeof(ImDrawVert);
@@ -68,7 +68,7 @@ static void ImGui_ImplG4_SetupRenderState(ImDrawData *draw_data) {
   ctx->DSSetShader(NULL, NULL, 0); // In theory we should backup and restore this as well.. very infrequently used..
   ctx->CSSetShader(NULL, NULL, 0); // In theory we should backup and restore this as well.. very infrequently used..*/
 
-  kong_set_render_pipeline_imgui_pipeline(&g_KoreCommandList);
+  kong_set_render_pipeline_imgui_pipeline(g_KoreCommandList);
 
   // Setup blend state
   /*const float blend_factor[4] = { 0.f, 0.f, 0.f, 0.f };
@@ -90,7 +90,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
       kong_destroy_buffer_vertex_in(&g_VB);
     }
     g_VertexBufferSize = draw_data->TotalVtxCount + 5000;
-    kong_create_buffer_vertex_in(&g_KoreDevice, g_VertexBufferSize, &g_VB);
+    kong_create_buffer_vertex_in(g_KoreDevice, g_VertexBufferSize, &g_VB);
     g_VertexBufferInitialized = true;
   }
   if (!g_IndexBufferInitialized || g_IndexBufferSize < draw_data->TotalIdxCount) {
@@ -102,33 +102,57 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
       .size        = g_IndexBufferSize * sizeof(uint16_t),
       .usage_flags = KORE_GPU_BUFFER_USAGE_INDEX | KORE_GPU_BUFFER_USAGE_CPU_WRITE,
     };
-    kore_gpu_device_create_buffer(&g_KoreDevice, &params, &g_IB);
+    kore_gpu_device_create_buffer(g_KoreDevice, &params, &g_IB);
     g_IndexBufferInitialized = true;
   }
 
+  if (first_update) {
+    kore_gpu_image_copy_buffer source = {
+        .buffer         = &g_FontImageBuffer,
+        .bytes_per_row  = font_image_width * 4,
+        .rows_per_image = font_image_height,
+    };
+
+    kore_gpu_image_copy_texture destination = {
+        .texture = &g_FontTexture,
+    };
+
+    kore_gpu_command_list_copy_buffer_to_texture(g_KoreCommandList, &source, &destination, font_image_width, font_image_height, 1);
+
+    first_update = false;
+  }
+
+
+  uint32_t total_index_count = 0;
+
   {
-    vertex_in *vtx_dst = kong_vertex_in_buffer_lock(&vertices);
-    ImDrawIdx *idx_dst = (ImDrawIdx *)kore_gpu_buffer_lock_all(&indices);
+    vertex_in *vtx_dst = kong_vertex_in_buffer_lock(&g_VB);
+    ImDrawIdx *idx_dst = (ImDrawIdx *)kore_gpu_buffer_lock_all(&g_IB);
     for (int n = 0; n < draw_data->CmdListsCount; n++) {
       const ImDrawList *cmd_list = draw_data->CmdLists[n];
       // memcpy(vtx_dst, cmd_list->VtxBuffer.Data, cmd_list->VtxBuffer.Size * sizeof(ImDrawVert));
       for (int i = 0; i < cmd_list->VtxBuffer.Size; ++i) {
-        vtx_dst[i].pos = cmd_list->VtxBuffer.Data[i].pos;
-        vtx_dst[i].uv = cmd_list->VtxBuffer.Data[i].uv;
+        vtx_dst[i].pos.x = cmd_list->VtxBuffer.Data[i].pos.x;
+        vtx_dst[i].pos.y = cmd_list->VtxBuffer.Data[i].pos.y;
+        vtx_dst[i].pos.z = 1.0;
+        vtx_dst[i].uv.x = cmd_list->VtxBuffer.Data[i].uv.x;
+        vtx_dst[i].uv.y = cmd_list->VtxBuffer.Data[i].uv.y;
         vtx_dst[i].col.w = ((cmd_list->VtxBuffer.Data[i].col >> 24) & 0xff) / 255.0f;
         vtx_dst[i].col.z = ((cmd_list->VtxBuffer.Data[i].col >> 16) & 0xff) / 255.0f;
         vtx_dst[i].col.y = ((cmd_list->VtxBuffer.Data[i].col >> 8) & 0xff) / 255.0f;
         vtx_dst[i].col.x = ((cmd_list->VtxBuffer.Data[i].col >> 0) & 0xff) / 255.0f;
       }
+      total_index_count += cmd_list->IdxBuffer.Size;
       memcpy(idx_dst, cmd_list->IdxBuffer.Data, cmd_list->IdxBuffer.Size * sizeof(ImDrawIdx));
       vtx_dst += cmd_list->VtxBuffer.Size;
       idx_dst += cmd_list->IdxBuffer.Size;
     }
-    kong_vertex_in_buffer_unlock(&vertices);
+    kore_gpu_buffer_unlock(&g_IB);
+    kong_vertex_in_buffer_unlock(&g_VB);
   }
 
-  kore_gpu_buffer_unlock(&indices);
-  kong_vertex_in_buffer_unlock(&vertices);
+  kong_set_vertex_buffer_vertex_in(g_KoreCommandList, &g_VB);
+  kore_gpu_command_list_set_index_buffer(g_KoreCommandList, &g_IB, KORE_GPU_INDEX_FORMAT_UINT16, 0, total_index_count);
 
   // Setup desired DX state
   ImGui_ImplG4_SetupRenderState(draw_data);
@@ -142,7 +166,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
   float T = draw_data->DisplayPos.y;
   float B = draw_data->DisplayPos.y + draw_data->DisplaySize.y;
 
-  kore_matrix4x4_t mvp;
+  kore_matrix4x4 mvp;
 
   kore_matrix4x4_set(&mvp, 0, 0, 2.0f / (R - L));
   kore_matrix4x4_set(&mvp, 0, 1, 0.0f);
@@ -163,6 +187,13 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
   kore_matrix4x4_set(&mvp, 3, 1, (T + B) / (B - T));
   kore_matrix4x4_set(&mvp, 3, 2, 0.5f);
   kore_matrix4x4_set(&mvp, 3, 3, 1.0f);
+
+
+  imgui_shader_constants_type *constants_data = imgui_shader_constants_type_buffer_lock(&g_ImguiShaderConstants, 0, 1);
+  constants_data->mvp            = mvp;
+  imgui_shader_constants_type_buffer_unlock(&g_ImguiShaderConstants);
+
+  kong_set_descriptor_set_imgui_shader_uniforms(g_KoreCommandList, &g_ImguiShaderUniforms);
 
   // Backup DX state that will be modified to restore it afterwards (unfortunately this is very ugly looking and verbose. Close your eyes!)
   /*struct BACKUP_DX11_STATE
@@ -222,10 +253,11 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
       if (pcmd->UserCallback != NULL) {
         // User callback, registered via ImDrawList::AddCallback()
         // (ImDrawCallback_ResetRenderState is a special callback value used by the user to request the renderer to reset render state.)
-        if (pcmd->UserCallback == ImDrawCallback_ResetRenderState)
+        if (pcmd->UserCallback == ImDrawCallback_ResetRenderState) {
           ImGui_ImplG4_SetupRenderState(draw_data);
-        else
+        } else {
           pcmd->UserCallback(cmd_list, pcmd);
+        }
       }
       else {
         // Project scissor/clipping rectangles into framebuffer space
@@ -235,13 +267,10 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
           continue;
 
         // Apply scissor/clipping rectangle
-        kore_gpu_command_list_set_scissor_rect(&g_KoreCommandList, (int)clip_min.x, (int)clip_min.y, (int)(clip_max.x - clip_min.x), (int)(clip_max.y - clip_min.y));
+        kore_gpu_command_list_set_scissor_rect(g_KoreCommandList, (int)clip_min.x, (int)clip_min.y, (int)(clip_max.x - clip_min.x), (int)(clip_max.y - clip_min.y));
 
         // Draw
-        
-        kinc_g4_set_vertex_buffer(&g_VB);
-        kinc_g4_set_index_buffer(&g_IB);
-        kinc_g4_draw_indexed_vertices_from_to_from(pcmd->IdxOffset + global_idx_offset, pcmd->ElemCount, pcmd->VtxOffset + global_vtx_offset);
+        kore_gpu_command_list_draw_indexed(g_KoreCommandList, pcmd->ElemCount, 1, pcmd->IdxOffset, pcmd->VtxOffset + global_vtx_offset, 0);
       }
     }
     global_idx_offset += cmd_list->IdxBuffer.Size;
@@ -272,21 +301,29 @@ static void ImGui_ImplG4_CreateFontsTexture() {
   // Build texture atlas
   ImGuiIO &io = ImGui::GetIO();
   int width, height;
-  io.Fonts->GetTexDataAsRGBA32(&g_FontPixels, &width, &height);
+  int bpp;
+  unsigned char *font_pixels;
+  io.Fonts->GetTexDataAsRGBA32(&font_pixels, &width, &height, &bpp);
 
-  // Upload texture to graphics system
-  /* TODO: make kore3 image gpu buffer for copy to font texture on first render
+  font_image_width = width;
+  font_image_height = height;
+
+  // Prepare image buffer for copy on first render
   {
-    kinc_g4_texture_init(&g_FontTexture, width, height, KINC_IMAGE_FORMAT_RGBA32);
-    unsigned char *tex = kinc_g4_texture_lock(&g_FontTexture);
-    int stride = kinc_g4_texture_stride(&g_FontTexture);
-    for (int y = 0; y < height; ++y) {
-      memcpy(&tex[y * stride], &pixels[y * width * 4], width * 4);
-    }
-    kinc_g4_texture_unlock(&g_FontTexture);
-  }
-  */
+    kore_gpu_buffer_parameters buffer_parameters;
+    int tex_stride = kore_gpu_device_align_texture_row_bytes(g_KoreDevice, width * bpp);
+    buffer_parameters.size        = tex_stride * height;
+    buffer_parameters.usage_flags = KORE_GPU_BUFFER_USAGE_CPU_WRITE | KORE_GPU_BUFFER_USAGE_COPY_SRC;
+    kore_gpu_device_create_buffer(g_KoreDevice, &buffer_parameters, &g_FontImageBuffer);
 
+    unsigned char *tex = (unsigned char *)kore_gpu_buffer_lock_all(&g_FontImageBuffer);
+    for (int y = 0; y < height; ++y) {
+      memcpy(&tex[y * tex_stride], &font_pixels[y * width * bpp], width * bpp);
+    }
+    kore_gpu_buffer_unlock(&g_FontImageBuffer);
+  }
+
+  // Create font texture objects
   {
     kore_gpu_texture_parameters texture_parameters = {
         .width                 = width,
@@ -298,7 +335,7 @@ static void ImGui_ImplG4_CreateFontsTexture() {
         .format                = KORE_GPU_TEXTURE_FORMAT_RGBA32_UINT,
         .usage                 = KORE_GPU_TEXTURE_USAGE_COPY_DST | pix_texture_texture_usage_flags(),
     };
-    kore_gpu_device_create_texture(&g_KoreDevice, &texture_params, &g_FontTexture);
+    kore_gpu_device_create_texture(g_KoreDevice, &texture_parameters, &g_FontTexture);
 
     kore_gpu_sampler_parameters sampler_parameters = {
       .address_mode_u = KORE_GPU_ADDRESS_MODE_REPEAT,
@@ -312,7 +349,7 @@ static void ImGui_ImplG4_CreateFontsTexture() {
       .compare        = KORE_GPU_COMPARE_FUNCTION_ALWAYS,
       .max_anisotropy = 1,
     };
-    kore_gpu_device_create_sampler(&g_KoreDevice, &sampler_parameters, &g_FontSampler);
+    kore_gpu_device_create_sampler(g_KoreDevice, &sampler_parameters, &g_FontSampler);
   }
 
   // Store our identifier
@@ -374,6 +411,24 @@ bool ImGui_ImplG4_CreateDeviceObjects() {
   }*/
 
   ImGui_ImplG4_CreateFontsTexture();
+  
+  imgui_shader_constants_type_buffer_create(g_KoreDevice, &g_ImguiShaderConstants, 1);
+
+  {
+    imgui_shader_uniforms_parameters parameters = {
+        .imgui_shader_constants = &g_ImguiShaderConstants,
+        .pix_texture =
+            {
+                .texture           = &g_FontTexture,
+                .base_mip_level    = 0,
+                .mip_level_count   = 1,
+                .base_array_layer  = 0,
+                .array_layer_count = 1,
+            },
+        .pix_sampler = &g_FontSampler,
+    };
+    kong_create_imgui_shader_uniforms_set(g_KoreDevice, &parameters, &g_ImguiShaderUniforms);
+  }
 
   return true;
 }
@@ -397,13 +452,14 @@ void ImGui_ImplG4_InvalidateDeviceObjects() {
   if (g_pVertexShaderBlob) { g_pVertexShaderBlob->Release(); g_pVertexShaderBlob = NULL; }*/
 }
 
-bool ImGui_ImplG4_Init(kore_gpu_device *device) {
+bool ImGui_ImplG4_Init(kore_gpu_device *device, kore_gpu_command_list *commandlist) {
   // Setup back-end capabilities flags
   ImGuiIO &io = ImGui::GetIO();
   io.BackendRendererName = "imgui_impl_kore3";
   io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset; // We can honor the ImDrawCmd::VtxOffset field, allowing for large meshes.
 
-  &g_KoreDevice = device;
+  g_KoreDevice = device;
+  g_KoreCommandList = commandlist;
 
   // Get factory from device
   /*IDXGIDevice* pDXGIDevice = NULL;

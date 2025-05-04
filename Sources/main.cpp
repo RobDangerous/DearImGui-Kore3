@@ -2,8 +2,11 @@
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 // (SDL is a cross-platform general purpose library for handling windows, inputs, OpenGL/Vulkan graphics context creation, etc.)
 
+#pragma GCC diagnostic ignored "-Wreorder"
+
 #include <kore3/system.h>
 #include <kore3/window.h>
+#include <kong.h>
 
 #include "imgui.h"
 #include "imgui_impl_g4.h"
@@ -29,11 +32,16 @@ static void update(void *data) {
   kore_gpu_texture *framebuffer = kore_gpu_device_get_framebuffer(&device);
 
 	kore_gpu_render_pass_parameters parameters = {
-	    .color_attachments_count = 1,
 	    .color_attachments =
 	        {
 	            {
-	                .load_op = KORE_GPU_LOAD_OP_CLEAR,
+	                .texture = {
+                    .texture           = framebuffer,
+                    .format            = kore_gpu_device_framebuffer_format(&device),
+                    .dimension         = KORE_GPU_TEXTURE_VIEW_DIMENSION_2D,
+                    .mip_level_count   = 1,
+                    .array_layer_count = 1,
+                  }, 
 	                .clear_value =
 	                    {
 	                        .r = clear_color[0],
@@ -41,21 +49,18 @@ static void update(void *data) {
 	                        .b = clear_color[2],
 	                        .a = clear_color[3],
 	                    },
-	                .texture.texture           = framebuffer,
-	                .texture.array_layer_count = 1,
-	                .texture.mip_level_count   = 1,
-	                .texture.format            = kore_gpu_device_framebuffer_format(&device),
-	                .texture.dimension         = KORE_GPU_TEXTURE_VIEW_DIMENSION_2D,
+	                .load_op = KORE_GPU_LOAD_OP_CLEAR,
 	            },
 	        },
+	    .color_attachments_count = 1,
 	    .depth_stencil_attachment =
 	        {
-	            .texture           = &depth,
-	            .depth_load_op     = KORE_GPU_LOAD_OP_CLEAR,
+	            .texture           = &depth_texture,
 	            .depth_clear_value = 1.0f,
+	            .depth_load_op     = KORE_GPU_LOAD_OP_CLEAR,
 	        },
 	};
-	kore_gpu_command_list_begin_render_pass(&list, &parameters);
+	kore_gpu_command_list_begin_render_pass(&commandlist, &parameters);
 
 	// Start the Dear ImGui frame
 	ImGui_ImplG4_NewFrame();
@@ -102,12 +107,16 @@ static void update(void *data) {
 	// Rendering
 	ImGui::Render();
 	/*g_pd3dDeviceContext->OMSetRenderTargets(1, &g_mainRenderTargetView, NULL);*/
-	kinc_g4_clear(KINC_G4_CLEAR_COLOR, 0xff0000ff, 0.0f, 0);
-  kore_gpu_command_list_clear_buffer(&);
+	//kinc_g4_clear(KINC_G4_CLEAR_COLOR, 0xff0000ff, 0.0f, 0);
 	ImGui_ImplG4_RenderDrawData(ImGui::GetDrawData());
 
-	kinc_g4_end(0);
-	kinc_g4_swap_buffers();
+	//kinc_g4_end(0);
+	//kinc_g4_swap_buffers();
+
+  kore_gpu_command_list_end_render_pass(&commandlist);
+	kore_gpu_command_list_present(&commandlist);
+	kore_gpu_device_execute_command_list(&device, &commandlist);
+
 }
 
 // Main code
@@ -124,13 +133,13 @@ int kickstart(int, char **) {
 
   {
     kore_gpu_texture_parameters texture_params = {
-        .format                = KORE_GPU_TEXTURE_FORMAT_DEPTH32FLOAT,
         .width                 = 1024, // TODO: maybe don't make these literals
         .height                = 768,
         .depth_or_array_layers = 1,
-        .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
         .mip_level_count       = 1,
         .sample_count          = 1,
+        .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
+        .format                = KORE_GPU_TEXTURE_FORMAT_DEPTH32FLOAT,
         .usage                 = KORE_GPU_TEXTURE_USAGE_RENDER_ATTACHMENT,
     };
     kore_gpu_device_create_texture(&device, &texture_params, &depth_texture);
@@ -152,7 +161,7 @@ int kickstart(int, char **) {
 
 	// Setup Platform/Renderer bindings
 	ImGui_ImplKinc_InitForG4(0);
-	ImGui_ImplG4_Init(&device);
+	ImGui_ImplG4_Init(&device, &commandlist);
 
 	// Load Fonts
 	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.

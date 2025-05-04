@@ -6,7 +6,10 @@
 
 #pragma once
 
-IMGUI_IMPL_API bool     ImGui_ImplG4_Init(int window);
+#include <kore3/system.h>
+#include <kong.h>
+
+IMGUI_IMPL_API bool     ImGui_ImplG4_Init(kore_gpu_device *device, kore_gpu_command_list *commandlist);
 IMGUI_IMPL_API void     ImGui_ImplG4_Shutdown();
 IMGUI_IMPL_API void     ImGui_ImplG4_NewFrame();
 IMGUI_IMPL_API void     ImGui_ImplG4_RenderDrawData(ImDrawData* draw_data);

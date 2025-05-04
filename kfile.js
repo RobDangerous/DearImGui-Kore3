@@ -5,6 +5,7 @@ await project.addProject('Kore');
 project.addDefine('IMGUI_USER_CONFIG="imguiconfig.h"');
 project.addDefine('_GNU_SOURCE=1');
 project.addIncludeDir('include');
+project.addCppFlag('-fpermissive');
 
 project.addIncludeDir('imgui');
 project.addFiles(

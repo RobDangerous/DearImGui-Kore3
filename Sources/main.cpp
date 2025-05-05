@@ -14,7 +14,6 @@
 
 #include <stdio.h>
 
-static kore_gpu_texture depth_texture;
 static kore_gpu_device device;
 static kore_gpu_command_list commandlist;
 
@@ -53,12 +52,6 @@ static void update(void *data) {
 	            },
 	        },
 	    .color_attachments_count = 1,
-	    .depth_stencil_attachment =
-	        {
-	            .texture           = &depth_texture,
-	            .depth_clear_value = 1.0f,
-	            .depth_load_op     = KORE_GPU_LOAD_OP_CLEAR,
-	        },
 	};
 	kore_gpu_command_list_begin_render_pass(&commandlist, &parameters);
 
@@ -130,20 +123,6 @@ int kickstart(int, char **) {
   kore_gpu_device_create(&device, &wishlist);
 
 	kong_init(&device);
-
-  {
-    kore_gpu_texture_parameters texture_params = {
-        .width                 = 1024, // TODO: maybe don't make these literals
-        .height                = 768,
-        .depth_or_array_layers = 1,
-        .mip_level_count       = 1,
-        .sample_count          = 1,
-        .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
-        .format                = KORE_GPU_TEXTURE_FORMAT_DEPTH32FLOAT,
-        .usage                 = KORE_GPU_TEXTURE_USAGE_RENDER_ATTACHMENT,
-    };
-    kore_gpu_device_create_texture(&device, &texture_params, &depth_texture);
-  }
 
   kore_gpu_device_create_command_list(&device, KORE_GPU_COMMAND_LIST_TYPE_GRAPHICS, &commandlist);
 

@@ -271,7 +271,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
         kore_gpu_command_list_set_scissor_rect(g_KoreCommandList, (int)clip_min.x, (int)clip_min.y, (int)(clip_max.x - clip_min.x), (int)(clip_max.y - clip_min.y));
 
         // Draw
-        kore_gpu_command_list_draw_indexed(g_KoreCommandList, pcmd->ElemCount, 1, pcmd->IdxOffset, pcmd->VtxOffset + global_vtx_offset, 0);
+        kore_gpu_command_list_draw_indexed(g_KoreCommandList, pcmd->ElemCount, 1, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset, 0);
       }
     }
     global_idx_offset += cmd_list->IdxBuffer.Size;

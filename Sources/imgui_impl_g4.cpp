@@ -47,6 +47,7 @@ static int g_VertexBufferSize = 5000, g_IndexBufferSize = 10000;
 static bool first_update = true;
 static uint32_t font_image_width = 0;
 static uint32_t font_image_height = 0;
+static int tex_stride = 0;
 
 static void ImGui_ImplG4_SetupRenderState(ImDrawData *draw_data) {
   // Setup viewport
@@ -99,7 +100,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
     }
     g_IndexBufferSize = draw_data->TotalIdxCount + 10000;
     kore_gpu_buffer_parameters params = {
-      .size        = g_IndexBufferSize * sizeof(uint16_t),
+      .size        = (uint64_t)g_IndexBufferSize * sizeof(uint32_t),
       .usage_flags = KORE_GPU_BUFFER_USAGE_INDEX | KORE_GPU_BUFFER_USAGE_CPU_WRITE,
     };
     kore_gpu_device_create_buffer(g_KoreDevice, &params, &g_IB);
@@ -109,7 +110,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
   if (first_update) {
     kore_gpu_image_copy_buffer source = {
         .buffer         = &g_FontImageBuffer,
-        .bytes_per_row  = font_image_width * 4,
+        .bytes_per_row  = (uint32_t)tex_stride,
         .rows_per_image = font_image_height,
     };
 
@@ -152,7 +153,7 @@ void ImGui_ImplG4_RenderDrawData(ImDrawData *draw_data) {
   }
 
   kong_set_vertex_buffer_vertex_in(g_KoreCommandList, &g_VB);
-  kore_gpu_command_list_set_index_buffer(g_KoreCommandList, &g_IB, KORE_GPU_INDEX_FORMAT_UINT16, 0, total_index_count);
+  kore_gpu_command_list_set_index_buffer(g_KoreCommandList, &g_IB, KORE_GPU_INDEX_FORMAT_UINT32, 0, total_index_count);
 
   // Setup desired DX state
   ImGui_ImplG4_SetupRenderState(draw_data);
@@ -311,7 +312,7 @@ static void ImGui_ImplG4_CreateFontsTexture() {
   // Prepare image buffer for copy on first render
   {
     kore_gpu_buffer_parameters buffer_parameters;
-    int tex_stride = kore_gpu_device_align_texture_row_bytes(g_KoreDevice, width * bpp);
+    tex_stride = kore_gpu_device_align_texture_row_bytes(g_KoreDevice, width * bpp);
     buffer_parameters.size        = tex_stride * height;
     buffer_parameters.usage_flags = KORE_GPU_BUFFER_USAGE_CPU_WRITE | KORE_GPU_BUFFER_USAGE_COPY_SRC;
     kore_gpu_device_create_buffer(g_KoreDevice, &buffer_parameters, &g_FontImageBuffer);
@@ -326,13 +327,13 @@ static void ImGui_ImplG4_CreateFontsTexture() {
   // Create font texture objects
   {
     kore_gpu_texture_parameters texture_parameters = {
-        .width                 = width,
-        .height                = height,
+        .width                 = (uint32_t)width,
+        .height                = (uint32_t)height,
         .depth_or_array_layers = 1,
         .mip_level_count       = 1,
         .sample_count          = 1,
         .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
-        .format                = KORE_GPU_TEXTURE_FORMAT_RGBA32_UINT,
+        .format                = KORE_GPU_TEXTURE_FORMAT_RGBA8_UINT,
         .usage                 = KORE_GPU_TEXTURE_USAGE_COPY_DST | pix_texture_texture_usage_flags(),
     };
     kore_gpu_device_create_texture(g_KoreDevice, &texture_parameters, &g_FontTexture);

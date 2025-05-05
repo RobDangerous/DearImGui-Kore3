@@ -39,7 +39,7 @@ const pix_texture: tex2d;
 const pix_sampler: sampler;
 
 fun pix(input: vertex_out): float4 {
-  return input.col;// * sample(pix_texture, pix_sampler, input.uv);
+  return input.col * sample(pix_texture, pix_sampler, input.uv);
 }
 
 
@@ -48,4 +48,9 @@ struct imgui_pipeline {
   vertex = pos;
   fragment = pix;
   format = framebuffer_format();
+  blend_source = BLEND_FACTOR_SRC_ALPHA;
+  blend_destination = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+  blend_operation = BLEND_OPERATION_ADD;
+  alpha_blend_source = BLEND_FACTOR_SRC_ALPHA;
+  alpha_blend_destination = BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
 }

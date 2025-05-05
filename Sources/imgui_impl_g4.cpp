@@ -333,7 +333,7 @@ static void ImGui_ImplG4_CreateFontsTexture() {
         .mip_level_count       = 1,
         .sample_count          = 1,
         .dimension             = KORE_GPU_TEXTURE_DIMENSION_2D,
-        .format                = KORE_GPU_TEXTURE_FORMAT_RGBA8_UINT,
+        .format                = KORE_GPU_TEXTURE_FORMAT_RGBA8_UNORM,
         .usage                 = KORE_GPU_TEXTURE_USAGE_COPY_DST | pix_texture_texture_usage_flags(),
     };
     kore_gpu_device_create_texture(g_KoreDevice, &texture_parameters, &g_FontTexture);
@@ -347,7 +347,7 @@ static void ImGui_ImplG4_CreateFontsTexture() {
       .mipmap_filter  = KORE_GPU_MIPMAP_FILTER_MODE_NEAREST,
       .lod_min_clamp  = 1,
       .lod_max_clamp  = 32,
-      .compare        = KORE_GPU_COMPARE_FUNCTION_ALWAYS,
+      .compare        = KORE_GPU_COMPARE_FUNCTION_UNDEFINED,
       .max_anisotropy = 1,
     };
     kore_gpu_device_create_sampler(g_KoreDevice, &sampler_parameters, &g_FontSampler);
